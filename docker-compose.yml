@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  minecraft-server:
+    build: .
+    container_name: minecraft-server
+    restart: unless-stopped
+    ports:
+      - "25565:25565"
+    volumes:
+      - minecraft-data:/data
+      - ./logs:/opt/minecraft/logs
+    environment:
+      - MINECRAFT_MEMORY=1024M
+      - MINECRAFT_MAX_PLAYERS=20
+    healthcheck:
+      test: ["CMD", "netstat", "-an", "|", "grep", ":25565"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  minecraft-data:
+    driver: local 
