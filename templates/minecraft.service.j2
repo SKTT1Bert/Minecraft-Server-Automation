@@ -1,0 +1,29 @@
+[Unit]
+Description=Minecraft Server
+After=network.target
+Wants=network.target
+
+[Service]
+Type=forking
+User={{ minecraft_user }}
+Group={{ minecraft_user }}
+WorkingDirectory={{ minecraft_dir }}
+ExecStart={{ minecraft_dir }}/start-server.sh
+ExecStop={{ minecraft_dir }}/stop-server.sh
+TimeoutStopSec=30
+Restart=always
+RestartSec=10
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths={{ minecraft_dir }}
+
+# Resource limits
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target 

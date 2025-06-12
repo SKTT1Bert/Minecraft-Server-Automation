@@ -1,0 +1,156 @@
+---
+- name: Configure Minecraft Server
+  hosts: minecraft_servers
+  become: yes
+  gather_facts: yes
+  vars:
+    minecraft_user: "ec2-user"
+    minecraft_dir: "/home/{{ minecraft_user }}/minecraft-server"
+    minecraft_jar: "minecraft_server.jar"
+    minecraft_version: "1.20.4"
+    minecraft_memory: "1024M"
+    minecraft_max_players: 20
+    server_port: 25565
+
+  tasks:
+    - name: Update system packages
+      yum:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Install Java 17
+      yum:
+        name: java-17-amazon-corretto-headless
+        state: present
+
+    - name: Verify Java installation
+      command: java -version
+      register: java_version
+      changed_when: false
+
+    - name: Display Java version
+      debug:
+        msg: "Java version installed: {{ java_version.stderr }}"
+
+    - name: Create Minecraft directory
+      file:
+        path: "{{ minecraft_dir }}"
+        state: directory
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0755'
+
+    - name: Download Minecraft server jar
+      get_url:
+        url: "https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar"
+        dest: "{{ minecraft_dir }}/{{ minecraft_jar }}"
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0644'
+
+    - name: Create EULA file
+      copy:
+        content: "eula=true"
+        dest: "{{ minecraft_dir }}/eula.txt"
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0644'
+
+    - name: Create server.properties file
+      template:
+        src: server.properties.j2
+        dest: "{{ minecraft_dir }}/server.properties"
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0644'
+      notify: restart minecraft
+
+    - name: Create Minecraft start script
+      template:
+        src: start-server.sh.j2
+        dest: "{{ minecraft_dir }}/start-server.sh"
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0755'
+
+    - name: Create Minecraft stop script
+      template:
+        src: stop-server.sh.j2
+        dest: "{{ minecraft_dir }}/stop-server.sh"
+        owner: "{{ minecraft_user }}"
+        group: "{{ minecraft_user }}"
+        mode: '0755'
+
+    - name: Create systemd service file
+      template:
+        src: minecraft.service.j2
+        dest: /etc/systemd/system/minecraft.service
+        mode: '0644'
+      notify:
+        - reload systemd
+        - restart minecraft
+
+    - name: Create logrotate configuration
+      copy:
+        content: |
+          {{ minecraft_dir }}/logs/*.log {
+            daily
+            missingok
+            rotate 7
+            compress
+            notifempty
+            create 644 {{ minecraft_user }} {{ minecraft_user }}
+            postrotate
+              /bin/systemctl reload minecraft
+            endscript
+          }
+        dest: /etc/logrotate.d/minecraft
+        mode: '0644'
+
+    - name: Enable and start Minecraft service
+      systemd:
+        name: minecraft
+        enabled: yes
+        state: started
+        daemon_reload: yes
+
+    - name: Wait for Minecraft server to start
+      wait_for:
+        port: "{{ server_port }}"
+        host: "{{ ansible_default_ipv4.address }}"
+        delay: 30
+        timeout: 300
+        msg: "Minecraft server failed to start within 5 minutes"
+
+    - name: Verify Minecraft server is running
+      systemd:
+        name: minecraft
+        state: started
+      register: minecraft_service_status
+
+    - name: Display service status
+      debug:
+        msg: "Minecraft service is {{ minecraft_service_status.status.ActiveState }}"
+
+    - name: Check if Minecraft port is listening
+      wait_for:
+        port: "{{ server_port }}"
+        host: "{{ ansible_default_ipv4.address }}"
+        timeout: 10
+      register: port_check
+      ignore_errors: yes
+
+    - name: Display port status
+      debug:
+        msg: "Minecraft server port {{ server_port }} is {{ 'open' if port_check is succeeded else 'closed' }}"
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart minecraft
+      systemd:
+        name: minecraft
+        state: restarted 

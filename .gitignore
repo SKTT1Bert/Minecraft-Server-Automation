@@ -1,0 +1,74 @@
+# Terraform files
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+terraform.rc
+
+# SSH Keys
+*.pem
+*.pub
+id_rsa*
+minecraft-key*
+
+# Ansible files
+*.retry
+inventory.tmp
+ansible.log
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+nohup.out
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# AWS credentials
+.aws/
+credentials
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Backup files
+*.backup
+*.bak
+
+# Large files (ISO images, executables)
+*.iso
+*.exe
+*.dmg
+*.pkg
+*.deb
+*.rpm 
